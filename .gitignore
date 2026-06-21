@@ -289,5 +289,9 @@ events.out.tfevents*
 input_videos/
 output_videos/
 
+# Models folder - samo struktura, bez modela
+models/*
+!models/.gitkeep
+
 # Dataset folderi
 training/tennis_court_det_dataset/
