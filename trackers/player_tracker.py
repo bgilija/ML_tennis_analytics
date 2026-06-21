@@ -2,10 +2,40 @@ from ultralytics import YOLO
 import cv2
 import pickle
 import os
+import sys
+
+sys.path.append('../')
+from utils import measure_distance, get_center_of_bounding_box
 
 class PlayerTracker:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
+
+    def choose_and_filter_players(self, court_keypoints, player_detections):
+        player_detections_first_frame = player_detections[0]
+        chosen_players=self.choose_players(court_keypoints, player_detections_first_frame)
+        filtered_player_detections=[]
+        for player_dictionary in player_detections:
+            filtered_player_dict={track_id: bounding_box for track_id,bounding_box in player_dictionary.items() if track_id in chosen_players}
+            filtered_player_detections.append(filtered_player_dict)
+
+        return filtered_player_detections
+    def choose_players(self, court_keypoints, player_detections): #myb needs a fix to choose by centers of court sides
+        distances = []
+        for track_id, bounding_box in player_detections.items():
+            player_center = get_center_of_bounding_box(bounding_box)
+            min_dist = float('inf')
+            for i in range(0, len(court_keypoints), 2):
+                court_keypoint = (court_keypoints[i], court_keypoints[i+1])
+                dist = measure_distance(player_center, court_keypoint)
+                if dist < min_dist:
+                    min_dist = dist
+            distances.append((track_id, min_dist))
+
+        distances.sort(key=lambda x: x[1])
+        chosen_players = [distances[0][0], distances[1][0]]
+        return chosen_players
+
 
     def detect_frame(self, frame):
         results = self.model.track(frame, persist= True)[0]
