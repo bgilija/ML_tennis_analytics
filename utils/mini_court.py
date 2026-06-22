@@ -91,7 +91,9 @@ class MiniCourt:
     def transform_point(self, point, H):
         pt = np.array([[[float(point[0]), float(point[1])]]], dtype=np.float32)
         result = cv2.perspectiveTransform(pt, H)
-        return (int(result[0][0][0]), int(result[0][0][1]))
+        x = int(np.clip(result[0][0][0], self.court_x, self.court_x + self.court_w))
+        y = int(np.clip(result[0][0][1], self.court_y, self.court_y + self.court_h))
+        return (x, y)
 
     @staticmethod
     def _foot_position(bbox):
