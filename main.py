@@ -24,10 +24,19 @@ def main():
     ball_detections = ball_tracker.detect_frames(video_frames, read_from_stub=True, stub_path="tracker_stubs/ball_detections.pkl")
     ball_detections = ball_tracker.interpolate_ball_positions(ball_detections)
 
+    # mini court
+    mini_court = MiniCourt(video_frames[0])
+    H = mini_court.compute_homography(court_line_detections)
+    player_mini, ball_mini = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
+        player_detections, ball_detections, H
+    )
+
     #drawing detections
     output_frames = player_tracker.draw_boxes(video_frames, player_detections)
     output_frames = ball_tracker.draw_boxes(output_frames, ball_detections)
     output_frames = court_line_detector.draw_keypoints_on_video(output_frames, court_line_detections)
+    output_frames = mini_court.draw_mini_court(output_frames)
+    output_frames = mini_court.draw_player_ball_positions(output_frames, player_mini, ball_mini)
 
 
 
