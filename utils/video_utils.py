@@ -10,9 +10,11 @@ def save(video_frames, output_path, fps=24):
         out.write(frame)
     out.release()
 
-#returns video as array of frames
+
+
 def read_video(video_path):
     cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 24
     frames = []
     while cap.isOpened():
         ret, frame = cap.read()
@@ -20,4 +22,4 @@ def read_video(video_path):
             break
         frames.append(frame)
     cap.release()
-    return frames
+    return frames, fps

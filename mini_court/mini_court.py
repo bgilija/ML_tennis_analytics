@@ -113,6 +113,54 @@ class MiniCourt:
             })
         return player_mini, ball_mini
 
+    def detect_bounces(self, ball_detections_image, player_detections_image, ball_mini_positions):
+        # Detect bounces by proximity: ball near a player = bounce/hit moment.
+        # Distance is normalised by player bounding-box height so the threshold is
+        # scale-invariant — works equally for near (large) and far (small) players.
+        bounces = []
+        last_frame = -40
+        min_gap = 30
+        max_normalised_dist = 0.8  # within 0.8× player heights
+
+        for i in range(len(ball_detections_image)):
+            if i - last_frame < min_gap:
+                continue
+            if not ball_detections_image[i] or not player_detections_image[i]:
+                continue
+
+            bb = next(iter(ball_detections_image[i].values()))
+            bx = (bb[0] + bb[2]) / 2
+            by = (bb[1] + bb[3]) / 2
+
+            best = float('inf')
+            for pb in player_detections_image[i].values():
+                cx = (pb[0] + pb[2]) / 2
+                cy = (pb[1] + pb[3]) / 2
+                player_height = max(pb[3] - pb[1], 1)
+                dist = ((bx - cx) ** 2 + (by - cy) ** 2) ** 0.5
+                normalised = dist / player_height
+                if normalised < best:
+                    best = normalised
+
+            if best > max_normalised_dist:
+                continue
+
+            pos = next(iter(ball_mini_positions[i].values())) if ball_mini_positions[i] else None
+            if pos:
+                bounces.append({'frame': i, 'position': pos})
+                last_frame = i
+
+        return bounces
+
+    def draw_bounces(self, frames, bounce_info):
+        output = []
+        for i, frame in enumerate(frames):
+            for b in bounce_info:
+                if b['frame'] <= i:
+                    cv2.circle(frame, b['position'], 5, (0, 255, 0), -1)
+            output.append(frame)
+        return output
+
     def draw_mini_court(self, frames):
         output = []
         for frame in frames:
