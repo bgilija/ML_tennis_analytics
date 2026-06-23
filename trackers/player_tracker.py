@@ -20,20 +20,45 @@ class PlayerTracker:
             filtered_player_detections.append(filtered_player_dict)
 
         return filtered_player_detections
-    def choose_players(self, court_keypoints, player_detections): #myb needs a fix to choose by centers of court sides
-        distances = []
+    def choose_players(self, court_keypoints, player_detections):
+        ys = [court_keypoints[i + 1] for i in range(0, len(court_keypoints), 2)]
+        court_center_y = sum(ys) / len(ys)
+
+        top_candidates = []
+        bottom_candidates = []
+
         for track_id, bounding_box in player_detections.items():
             player_center = get_center_of_bounding_box(bounding_box)
             min_dist = float('inf')
             for i in range(0, len(court_keypoints), 2):
-                court_keypoint = (court_keypoints[i], court_keypoints[i+1])
+                court_keypoint = (court_keypoints[i], court_keypoints[i + 1])
                 dist = measure_distance(player_center, court_keypoint)
                 if dist < min_dist:
                     min_dist = dist
-            distances.append((track_id, min_dist))
 
-        distances.sort(key=lambda x: x[1])
-        chosen_players = [distances[0][0], distances[1][0]]
+            if player_center[1] < court_center_y:
+                top_candidates.append((track_id, min_dist))
+            else:
+                bottom_candidates.append((track_id, min_dist))
+
+        top_candidates.sort(key=lambda x: x[1])
+        bottom_candidates.sort(key=lambda x: x[1])
+
+        chosen_players = []
+        if top_candidates:
+            chosen_players.append(top_candidates[0][0])
+        if bottom_candidates:
+            chosen_players.append(bottom_candidates[0][0])
+
+#fallback
+        if len(chosen_players) < 2:
+            all_candidates = sorted(top_candidates + bottom_candidates, key=lambda x: x[1])
+            for track_id, _ in all_candidates:
+                if track_id not in chosen_players:
+                    chosen_players.append(track_id)
+                if len(chosen_players) == 2:
+                    break
+
         return chosen_players
 
 

@@ -7,7 +7,7 @@ import cv2
 def main():
     print("Main method")
     #video input
-    input_video_path = "input_videos/input_video.avi" #mora .avi , nikako mp4
+    input_video_path = "input_videos/ex06.avi" #mora .avi , nikako mp4
     video_frames, fps = read_video(input_video_path)
 
 #enumerate frames
