@@ -1,9 +1,9 @@
 # Tennis analysis
 
-Analiza teniskog snimka (statična TV kamera): detekcija igrača i loptice, tačke terena,
-mini mapa, udarci, odskoci i statistika (brzina udarca, brzina i pređeni put igrača).
+Tennis video analysis (static broadcast camera): player and ball detection, court keypoints,
+mini map, hits, bounces and statistics (shot speed, player speed and distance covered).
 
-## Instalacija
+## Installation
 
 ```
 python -m venv .venv
@@ -11,47 +11,47 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Modeli (nisu u git-u):
+Models (not in git):
 
-| fajl | opis |
+| file | description |
 |---|---|
-| `models/yolo5_last.pt` | YOLOv5 detektor loptice (`training/tennis_ball_detector_training.ipynb`) |
-| `models/keypoints_model.pth` | ResNet50, 14 tačaka terena (`training/tennis_court_keypoints_training.ipynb`) |
-| `yolov8x.pt` | COCO YOLOv8x za igrače, ultralytics ga sam preuzme |
+| `models/yolo5_last.pt` | YOLOv5 ball detector (`training/tennis_ball_detector_training.ipynb`) |
+| `models/keypoints_model.pth` | ResNet50, 14 court keypoints (`training/tennis_court_keypoints_training.ipynb`) |
+| `yolov8x.pt` | COCO YOLOv8x for players, downloaded automatically by ultralytics |
 
-## Pokretanje
+## Usage
 
 ```
 python main.py --input input_videos/input_video.avi
-python main.py --input input_videos/ex04.avi --use-stubs   # koristi keširane detekcije
+python main.py --input input_videos/ex04.avi --use-stubs   # reuse cached detections
 ```
 
-Izlaz: `output_videos/<ime>_output.avi`. Detekcije se keširaju u `tracker_stubs/<ime>_*.pkl`.
-Ulaz mora biti `.avi`.
+Output: `output_videos/<name>_output.avi`. Detections are cached in `tracker_stubs/<name>_*.pkl`.
+The input must be an `.avi` file.
 
 ## Pipeline
 
-1. `CourtLineDetector.predict_video` – 14 tačaka terena (medijana preko više frejmova).
-2. `utils/court_reference.py` – homografija slika → metri terena (svih 14 tačaka, RANSAC).
-3. `PlayerTracker` – YOLOv8 + tracking; dva igrača sa stabilnim ID-jem: 1 = dalji, 2 = bliži.
-4. `BallTracker` – izbor kandidata po kontinuitetu putanje, uklanjanje outliera, interpolacija kratkih praznina.
-5. `analysis/events.py` – udarci (promena smera loptice kod igrača) i odskoci (skok u ubrzanju y).
-6. `analysis/stats.py` – brzine udaraca, brzina i pređeni put igrača, panel sa statistikom.
-7. `MiniCourt` – mini mapa u metrima.
+1. `CourtLineDetector.predict_video` – 14 court keypoints (median over several frames).
+2. `utils/court_reference.py` – homography from image to court meters (all 14 keypoints, RANSAC).
+3. `PlayerTracker` – YOLOv8 + tracking; two players with stable IDs: 1 = far, 2 = near.
+4. `BallTracker` – candidate selection by trajectory continuity, outlier removal, interpolation of short gaps.
+5. `analysis/events.py` – hits (ball changes direction next to a player) and bounces (spike in y acceleration).
+6. `analysis/stats.py` – shot speeds, player speed and distance covered, statistics panel.
+7. `MiniCourt` – mini map in meters.
 
-## Testovi
+## Tests
 
 ```
 python -m unittest discover tests
 ```
 
-Testovi ne koriste modele (sintetički podaci): homografija, izbor loptice, outlieri,
-interpolacija, izbor igrača.
+The tests do not use the models (synthetic data): homography, ball selection, outliers,
+interpolation, player selection.
 
-## Poznata ograničenja
+## Known limitations
 
-- Kamera mora biti statična (tačke terena se računaju jednom za ceo snimak).
-- Odskok se traži kao skok u ubrzanju putanje loptice; ako model ne vidi lopticu baš oko
-  odskoka, pozicija može da kasni/žuri par frejmova.
-- Kod servisa daljeg igrača vrh bacanja loptice može biti prepoznat kao udarac.
-- Brzina udarca je prosečna brzina od igrača do odskoka, ne brzina na reketu.
+- The camera must be static (court keypoints are computed once for the whole video).
+- A bounce is detected as a spike in the ball trajectory's acceleration; if the model misses
+  the ball right around the bounce, its position can be off by a few frames.
+- On the far player's serve, the top of the ball toss can be detected as a hit.
+- Shot speed is the average speed from the player to the bounce, not the speed off the racket.
