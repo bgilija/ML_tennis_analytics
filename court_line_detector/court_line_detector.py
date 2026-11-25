@@ -1,12 +1,16 @@
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 import cv2
 import torchvision.models as models
+
+
 class CourtLineDetector:
     def __init__(self, model_path):
-        self.model = models.resnet50(pretrained=False)
+        self.model = models.resnet50(weights=None)
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, 28)
-        self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
+        self.model.eval()
 
         self.transforms = transforms.Compose([
             transforms.ToPILImage(),
@@ -16,10 +20,8 @@ class CourtLineDetector:
         ])
 
     def predict(self, image):
-        #only if camera doesnt move
         img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image_tensor = self.transforms(img_rgb)
-        image_tensor = image_tensor.unsqueeze_(0)
+        image_tensor = self.transforms(img_rgb).unsqueeze(0)
 
         with torch.no_grad():
             output = self.model(image_tensor)
@@ -27,25 +29,24 @@ class CourtLineDetector:
         keypoints = output.squeeze().cpu().numpy()
         original_h, original_w = image.shape[:2]
 
-        keypoints[::2] *= original_w/224.0
-        keypoints[1::2] *= original_h/224.0
+        keypoints[::2] *= original_w / 224.0
+        keypoints[1::2] *= original_h / 224.0
         return keypoints
+
+    def predict_video(self, frames, num_samples=10):
+        # Static camera assumed: the per-keypoint median over several frames is
+        # more stable than a single frame (players/ball can occlude lines).
+        idx = np.linspace(0, len(frames) - 1, min(num_samples, len(frames))).astype(int)
+        predictions = np.stack([self.predict(frames[i]) for i in idx])
+        return np.median(predictions, axis=0)
 
     def draw_keypoints(self, image, keypoints):
         for i in range(0, len(keypoints), 2):
-            x=int(keypoints[i])
-            y=int(keypoints[i+1])
-
-            cv2.putText(image, str(i//2), (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0 , 255), 2)
-            cv2.circle(image, (x,y), 7, (0,0,255), -1)
-
+            x = int(keypoints[i])
+            y = int(keypoints[i + 1])
+            cv2.putText(image, str(i // 2), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            cv2.circle(image, (x, y), 7, (0, 0, 255), -1)
         return image
 
-
     def draw_keypoints_on_video(self, frames, keypoints):
-        output_frames = []
-        for frame in frames:
-            frame = self.draw_keypoints(frame, keypoints)
-            output_frames.append(frame)
-        return output_frames
-
+        return [self.draw_keypoints(frame, keypoints) for frame in frames]
